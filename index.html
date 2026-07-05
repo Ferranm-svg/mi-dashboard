@@ -330,8 +330,8 @@
 
   <div id="smartInsight"></div>
 
-  <div class="card" data-card="income" style="background:linear-gradient(135deg,#34C759 0%,#5AC8FA 100%);color:#fff;box-shadow:0 8px 24px rgba(52,199,89,0.25)">
-    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">💰 Ingresos totales acumulados</div>
+  <div class="card" data-card="income" onclick="openModal('editIncomeTotal')" style="background:linear-gradient(135deg,#34C759 0%,#5AC8FA 100%);color:#fff;box-shadow:0 8px 24px rgba(52,199,89,0.25);cursor:pointer">
+    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between">💰 Ingresos totales acumulados <span style="opacity:0.75;font-size:14px">✏️</span></div>
     <div style="font-size:42px;font-weight:800;letter-spacing:-1px;margin-top:4px" id="homeIncomeNum">0 €</div>
     <div style="font-size:13px;opacity:0.9;margin-top:6px" id="homeIncomeDetail">—</div>
   </div>
@@ -411,8 +411,8 @@
 
   <div id="salaryBanner"></div>
 
-  <div class="card" style="background:linear-gradient(135deg,#34C759 0%,#5AC8FA 100%);color:#fff;box-shadow:0 8px 24px rgba(52,199,89,0.25)">
-    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">💰 Ingresos totales acumulados</div>
+  <div class="card" onclick="openModal('editIncomeTotal')" style="background:linear-gradient(135deg,#34C759 0%,#5AC8FA 100%);color:#fff;box-shadow:0 8px 24px rgba(52,199,89,0.25);cursor:pointer">
+    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between">💰 Ingresos totales acumulados <span style="opacity:0.75;font-size:14px">✏️</span></div>
     <div style="font-size:42px;font-weight:800;letter-spacing:-1px;margin-top:4px" id="totalIncomeAll">0 €</div>
     <div style="font-size:13px;opacity:0.9;margin-top:6px" id="totalIncomeDetail">—</div>
   </div>
@@ -962,7 +962,7 @@ const DEFAULT = {
   profile: {
     name: '', currency: 'EUR',
     salary: 0, salaryDay: 1, monthlyGoal: 0, vacationTotal: 22,
-    startingSavings: 0,
+    startingSavings: 0, incomeBase: 0,
     partnerName: '', anniversary: '',
     invStart: 0, invMonthly: 0, invReturn: 7,
     rules: { save: 70, fun: 20, free: 10 },
@@ -1340,7 +1340,7 @@ function renderHome(){
   renderGratitude();
 
   // Card ingresos totales acumulados (igual que Dinero)
-  const totalIncAll = state.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+  const totalIncAll = (state.profile.incomeBase||0) + state.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
   const totalExpAll = state.transactions.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
   countUp(document.getElementById('homeIncomeNum'), totalIncAll, fmt);
   document.getElementById('homeIncomeDetail').textContent = `Gastos totales ${fmt(totalExpAll)} · Neto ${fmt(totalIncAll - totalExpAll)}`;
@@ -1630,7 +1630,7 @@ function renderMoney(){
   document.getElementById('mNet').className = 'v ' + (inc-exp>=0?'pos':'neg');
 
   // Ingresos totales acumulados
-  const allInc = state.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+  const allInc = (state.profile.incomeBase||0) + state.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
   const allExp = state.transactions.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
   countUp(document.getElementById('totalIncomeAll'), allInc, fmt);
   document.getElementById('totalIncomeDetail').textContent = `Gastos totales ${fmt(allExp)} · Neto ${fmt(allInc-allExp)}`;
@@ -3133,8 +3133,25 @@ function openModal(kind, data){
       <button class="btn ghost" style="margin-top:14px" onclick="closeModal()">Cerrar</button>`;
     b.innerHTML = html;
   }
+  else if(kind==='editIncomeTotal'){
+    const cur = (state.profile.incomeBase||0) + state.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+    html = `<h2>💰 Ingresos totales</h2>
+      <div style="font-size:13px;color:var(--text-3);margin-bottom:14px">Pon los ingresos que tienes ahora mismo. Cuando cobres la nómina o añadas ingresos, se sumarán a este total automáticamente.</div>
+      <div class="field"><label>Ingresos actuales (€)</label><input type="number" step="0.01" id="incTotalVal" value="${cur}" autofocus></div>
+      <button class="btn" onclick="saveIncomeTotal()">Guardar</button>
+      <button class="btn ghost" style="margin-top:8px" onclick="closeModal()">Cancelar</button>`;
+    b.innerHTML = html;
+  }
   m.classList.add('show');
   tick(900,0.04);
+}
+function saveIncomeTotal(){
+  const val = parseFloat(document.getElementById('incTotalVal').value);
+  if(isNaN(val) || val < 0) return;
+  const txSum = state.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+  state.profile.incomeBase = val - txSum;
+  save(); closeModal(); render();
+  showAchievementToast({ icon:'💰', name:'Ingresos actualizados', desc:`Total → ${fmt(val)}` });
 }
 function qaFilter(q){
   q=(q||'').toLowerCase().trim();
