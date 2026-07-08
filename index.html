@@ -318,6 +318,11 @@
   .card-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--sep)}
   .card-toggle-row:last-child{border-bottom:0}
   .card-toggle-row .lbl{font-size:15px;font-weight:500}
+
+  /* Ojo ocultar/mostrar ingresos */
+  .money-eye{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;line-height:1;transition:transform .13s var(--ease-out),background .15s}
+  .money-eye:active{transform:scale(.88);background:rgba(255,255,255,0.35)}
+  .money-blur{filter:blur(9px);transition:filter .25s var(--ease-out);user-select:none;-webkit-user-select:none}
 </style>
 </head>
 <body data-theme="light">
@@ -331,7 +336,7 @@
   <div id="smartInsight"></div>
 
   <div class="card" data-card="income" onclick="openModal('editIncomeTotal')" style="background:linear-gradient(135deg,#34C759 0%,#5AC8FA 100%);color:#fff;box-shadow:0 8px 24px rgba(52,199,89,0.25);cursor:pointer">
-    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between">💰 Ingresos totales acumulados <span style="opacity:0.75;font-size:14px">✏️</span></div>
+    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between">💰 Ingresos totales acumulados <span style="display:flex;align-items:center;gap:8px"><button class="money-eye" onclick="event.stopPropagation();toggleIncomeVisibility()" title="Ocultar/mostrar importe">👁️</button><span style="opacity:0.75;font-size:14px">✏️</span></span></div>
     <div style="font-size:42px;font-weight:800;letter-spacing:-1px;margin-top:4px" id="homeIncomeNum">0 €</div>
     <div style="font-size:13px;opacity:0.9;margin-top:6px" id="homeIncomeDetail">—</div>
   </div>
@@ -412,7 +417,7 @@
   <div id="salaryBanner"></div>
 
   <div class="card" onclick="openModal('editIncomeTotal')" style="background:linear-gradient(135deg,#34C759 0%,#5AC8FA 100%);color:#fff;box-shadow:0 8px 24px rgba(52,199,89,0.25);cursor:pointer">
-    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between">💰 Ingresos totales acumulados <span style="opacity:0.75;font-size:14px">✏️</span></div>
+    <div style="font-size:13px;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between">💰 Ingresos totales acumulados <span style="display:flex;align-items:center;gap:8px"><button class="money-eye" onclick="event.stopPropagation();toggleIncomeVisibility()" title="Ocultar/mostrar importe">👁️</button><span style="opacity:0.75;font-size:14px">✏️</span></span></div>
     <div style="font-size:42px;font-weight:800;letter-spacing:-1px;margin-top:4px" id="totalIncomeAll">0 €</div>
     <div style="font-size:13px;opacity:0.9;margin-top:6px" id="totalIncomeDetail">—</div>
   </div>
@@ -971,7 +976,7 @@ const DEFAULT = {
     calTarget: 2500, protTarget: 150, carbTarget: 280, fatTarget: 80,
     weightGoal: 0
   },
-  settings: { theme:'light', accent:'#007AFF', notifications:false, sounds:true, lastNotifCheck:'', lastBackup:'', remindMorning:'08:00', remindEvening:'21:00', remindGym:true, remindWater:true, remindMood:true, hiddenCards:{}, textSize:'normal' },
+  settings: { theme:'light', accent:'#007AFF', notifications:false, sounds:true, lastNotifCheck:'', lastBackup:'', remindMorning:'08:00', remindEvening:'21:00', remindGym:true, remindWater:true, remindMood:true, hiddenCards:{}, textSize:'normal', hideIncome:false },
   monthlyOverrides: {},
   categories: ['Sueldo','Ocio','Compras','Viajes','Suscripciones','Salud','Transporte','Otros'],
   transactions: [],
@@ -1344,6 +1349,7 @@ function renderHome(){
   const totalExpAll = state.transactions.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
   countUp(document.getElementById('homeIncomeNum'), totalIncAll, fmt);
   document.getElementById('homeIncomeDetail').textContent = `Gastos totales ${fmt(totalExpAll)} · Neto ${fmt(totalIncAll - totalExpAll)}`;
+  applyIncomeVisibility();
 
   const mk = monthKey(d);
   const monthTx = state.transactions.filter(t => t.date.startsWith(mk));
@@ -1634,6 +1640,7 @@ function renderMoney(){
   const allExp = state.transactions.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
   countUp(document.getElementById('totalIncomeAll'), allInc, fmt);
   document.getElementById('totalIncomeDetail').textContent = `Gastos totales ${fmt(allExp)} · Neto ${fmt(allInc-allExp)}`;
+  applyIncomeVisibility();
 
   // Banner cobro nómina
   const banner = document.getElementById('salaryBanner');
@@ -3872,6 +3879,23 @@ function prefersReduced(){ return !!(window.matchMedia && window.matchMedia('(pr
 function haptic(ms=10){ if(!prefersReduced() && navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} } }
 
 /* Count-up numérico para cifras destacadas */
+function applyIncomeVisibility(){
+  const hidden = !!state.settings.hideIncome;
+  ['homeIncomeNum','totalIncomeAll'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('money-blur', hidden);
+  });
+  document.querySelectorAll('.money-eye').forEach(b => {
+    b.textContent = hidden ? '🙈' : '👁️';
+    b.title = hidden ? 'Mostrar importe' : 'Ocultar importe';
+  });
+}
+function toggleIncomeVisibility(){
+  state.settings.hideIncome = !state.settings.hideIncome;
+  save();
+  applyIncomeVisibility();
+  haptic(8);
+}
 function countUp(el, to, formatter, dur=850){
   if(!el) return;
   const from = (typeof el._cuVal === 'number') ? el._cuVal : (to>0?0:to);
